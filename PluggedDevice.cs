@@ -22,7 +22,9 @@ namespace WpfApp1
         public bool deviceIsInBootloader = false;
         public string deviceCurrentVendor = "";
         public string deviceSELINUXStatus = "";
+        public string deviceOSVersion = "";
         public bool deviceIsSamsung = false;
+        public bool deviceIsHMOS = false;
         public string deviceKnoxBit = "";
 
         public PluggedDevice(Button b)
@@ -98,6 +100,32 @@ namespace WpfApp1
             deviceName = p.StandardOutput.ReadToEnd().Trim();
             p.WaitForExitAsync();
 
+            //get build.version
+
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.CreateNoWindow = true;
+            p.StartInfo.RedirectStandardInput = true;
+            p.StartInfo.RedirectStandardError = true;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.FileName = "./res/platform-tools/adb.exe";
+            p.StartInfo.Arguments = "shell getprop ro.build.version.release";
+            p.Start();
+            deviceOSVersion = p.StandardOutput.ReadToEnd().Trim();
+            p.WaitForExitAsync();
+
+            //get SDK version
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.CreateNoWindow = true;
+            p.StartInfo.RedirectStandardInput = true;
+            p.StartInfo.RedirectStandardError = true;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.FileName = "./res/platform-tools/adb.exe";
+            p.StartInfo.Arguments = "shell getprop ro.build.version.sdk";
+            p.Start();
+            var sdk = p.StandardOutput.ReadToEnd().Trim();
+            deviceOSVersion += "(API " + sdk + ")";
+            p.WaitForExitAsync();
+
             //get product.model
 
             p.StartInfo.Arguments = "shell getprop ro.product.model";
@@ -112,6 +140,15 @@ namespace WpfApp1
                     bit = GetProp("ro.warranty_bit");
                 }
                 deviceKnoxBit = bit;
+            }
+
+            // TODO better HarmonyOS detection (I don't have a Huawei device)
+            // This method assumes that every Huawei device running Android 10 is running HarmonyOS
+            p.StartInfo.Arguments = "shell getprop ro.build.fingerprint";
+            p.Start();
+            var fp = p.StandardOutput.ReadToEnd().Trim();
+            if (fp.StartsWith("HUAWEI") && sdk == "29") {
+                deviceIsHMOS = true;
             }
 
             if (deviceCurrentMode != "Bootloader")
@@ -154,7 +191,7 @@ namespace WpfApp1
                 //get imei
                 if (deviceCurrentMode == "Recovery")
                 {
-                    deviceImei = "IMEI Inaccessible in TWRP";
+                    deviceImei = "Inaccessible in TWRP";
                 }
                 else if (deviceCurrentMode == "System")
                 {
@@ -162,7 +199,8 @@ namespace WpfApp1
                     p.StandardInput.WriteLine("service call iphonesubinfo 1 | cut -c 52-66 | tr -d '.[:space:]'");
                     p.StandardInput.WriteLine("exit");
                     output = p.StandardOutput.ReadToEnd().Trim();
-                    deviceImei = output;
+                    if (output == "')") deviceImei = "Inaccessible";
+                    else deviceImei = output;
                     p.WaitForExitAsync();
                 }
                 

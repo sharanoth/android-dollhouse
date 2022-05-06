@@ -1,5 +1,8 @@
 .vs/
 bin/
-res/
+res/*
+!res/generic.png
+!res/generic_samsung.png
+!res/generic_hmos.png
 obj/
 WpfApp1.sln
